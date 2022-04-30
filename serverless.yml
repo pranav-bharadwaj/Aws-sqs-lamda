@@ -1,0 +1,125 @@
+# Welcome to Serverless!
+#
+# This file is the main config file for your service.
+# It's very minimal at this point and uses default values.
+# You can always add more config options for more control.
+# We've included some commented out config examples here.
+# Just uncomment any of them to get that config option.
+#
+# For full config options, check the docs:
+#    docs.serverless.com
+#
+# Happy Coding!
+
+service: sqs-lamda-dynamo-process
+# app and org for use with dashboard.serverless.com
+app: serverless-framework
+org: thinkinfinity
+
+
+custom: 
+  settings:
+    ACCOUNT_ID: "115901352545"
+   
+
+
+# You can pin your service to only deploy with a specific Serverless version
+# Check out our docs for more details
+frameworkVersion: '3'
+
+configValidationMode: warn
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  region: us-east-1
+  
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "sqs:*"
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        
+      Resource: "*"
+      
+      
+plugins:
+  - serverless-offline
+
+
+functions:
+  sender:
+    handler: sender.handler
+    events:
+      - http:
+          path: v1/sender
+          method: post
+    
+  receiver:
+    handler: receiver.handler
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - FirstQueMsg
+              - Arn
+          batchSize: 10
+  dynamoSaver:
+    handler: sender.saveDynamo
+    events:
+      - sqs:
+          arn: 
+            Fn::GetAtt:
+              - dlQueue
+              - Arn
+  replayMsg:
+    handler: receiver.replayMsgHandler
+    events:
+      - sqs:
+          arn: 
+            Fn::GetAtt:
+               - dlQueue
+               -  Arn
+      - http:
+          path: v1/sender
+          method: post
+             
+
+resources:
+  Resources:
+    dlQueue:
+      Type: "AWS::SQS::Queue"
+      Properties:
+        QueueName: "dlQueue"
+
+    FirstQueMsg:
+      Type: "AWS::SQS::Queue"
+      Properties:
+        QueueName: "FirstQueMsg"
+      
+        RedrivePolicy:
+          deadLetterTargetArn: "arn:aws:sqs:us-east-1:115901352545:dlQueue"
+          maxReceiveCount: 3
+
+ 
+     
+    DLQTable: 
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: "id"
+            AttributeType: "S"
+        BillingMode: PAY_PER_REQUEST
+        KeySchema:
+          - AttributeName: "id"
+            KeyType: "HASH"
+        TableName: failedmsg
+        
+        
+
+
+# export QUEUE_URL=`aws sqs get-queue-url --queue-name MyQueue --query 'QueueUrl' --output text --profile=sls`
+# aws sqs send-message --queue-url ${QUEUE_URL} --message-body "test" --profile=sls
