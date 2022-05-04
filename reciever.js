@@ -1,11 +1,17 @@
 "use strict";
+var AWS = require("aws-sdk");
 
+import "./Backoff";
+AWS.config.update({ region: "us-east-1" });
+const AWS_ACC = process.env.ACCOUNT_ID;
+var sqs = new AWS.SQS({ apiVersion: "2012-11-05" });
+const queue_url = `https://sqs.us-east-1.amazonaws.com/${AWS_ACC}/FirstQueMsg`;
 exports.handler = async (event, context, callback) => {
   const response = {
     statusCode: 200,
     body: JSON.stringify({
       message: "function executed successfully!",
-      input: event,
+      input: event.Records.body,
     }),
   };
 
@@ -19,14 +25,31 @@ exports.handler = async (event, context, callback) => {
 };
 
 exports.replyMsgHandler = async (event) => {
-  for (let i = 0; i < event.Records; i++) {
+  for (let i = 0; i < event.Records.length; i++) {
     let numofreply = 0;
-    let arr = event.Records;
+    let arr = event.Records[i];
     if (arr.includes("MessageAttributes")) {
-      numofreply = parseInt(arr.messageAttributes.retryAttempts);
+      numofreply = parseInt(arr[0].messageAttributes.retryAttempts);
     }
     numofreply += 1;
-    let records = event.Records.messageAttributes;
-    records.push({records.})
+    event.Records[i].messageAttributes.retryAttempts = numofreply;
+    var delaySec = new ExpoBackoffFullJitter.backoff(numofreply);
+    var b = new Backoff(1.5, 60);
   }
+  var params = {
+    QueueUrl: queue_url,
+    DelaySeconds: delaySec,
+    MessageBody: event.Records[i].body,
+    MessageAttributes: {
+      DataType: "Number",
+      retryAttempts: numofreply,
+    },
+  };
+  sqs.sendMessage(params, function (err, data) {
+    if (err) {
+      console.log("Error occured due to ", err);
+    } else {
+      console.log("Successfully send messages to queue ", data.MessageId);
+    }
+  });
 };

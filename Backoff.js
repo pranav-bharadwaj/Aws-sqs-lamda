@@ -3,13 +3,14 @@ class Backoff{
         this.base = base
         this.cap =cap
     }
-    expo(this,n) {
+    expo(n) {
 
         return Math.min(this.cap,Math.pow(2,n)*this.base)
     }
 }
 class ExpoBackoffFullJitter{
-    backoff(this,n){
+    
+    backoff(n){
         var base = new Backoff().expo(n)
         var fulljitter = Math.floor((Math.random()*base)+1)
         return fulljitter
