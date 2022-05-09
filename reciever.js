@@ -1,12 +1,12 @@
 "use strict";
 var AWS = require("aws-sdk");
+const backoff = require("./Backoff");
 
-import "./Backoff";
 AWS.config.update({ region: "us-east-1" });
 const AWS_ACC = process.env.ACCOUNT_ID;
 var sqs = new AWS.SQS({ apiVersion: "2012-11-05" });
 const queue_url = `https://sqs.us-east-1.amazonaws.com/${AWS_ACC}/FirstQueMsg`;
-exports.handler = async (event, context, callback) => {
+module.exports.recieverMsg = async (event, context, callback) => {
   const response = {
     statusCode: 200,
     body: JSON.stringify({
@@ -24,17 +24,18 @@ exports.handler = async (event, context, callback) => {
   return response;
 };
 
-exports.replyMsgHandler = async (event) => {
+module.exports.replyMsgHandler = async (event) => {
   for (let i = 0; i < event.Records.length; i++) {
     let numofreply = 0;
     let arr = event.Records[i];
+    console.log(event.Records);
     if (arr.includes("MessageAttributes")) {
       numofreply = parseInt(arr[0].messageAttributes.retryAttempts);
     }
     numofreply += 1;
     event.Records[i].messageAttributes.retryAttempts = numofreply;
-    var delaySec = new ExpoBackoffFullJitter.backoff(numofreply);
-    var b = new Backoff(1.5, 60);
+    var delaySec = backoff.expo(numofreply);
+    var b = backoff.backoff(1.5, 60);
   }
   var params = {
     QueueUrl: queue_url,

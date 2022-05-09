@@ -11,13 +11,13 @@ const msgBatchProducer = () => {
   let arr = new Array();
   for (let i = 0; i < 10; i++) {
     arr.push({
-      Id: Math.random() * 10000,
-      MessageBody: "This is a message of id " + id,
+      Id: "id" + parseInt(Math.random() * 1000),
+      MessageBody: `This is id of ${i}`,
     });
   }
   return arr;
 };
-exports.handler = async (event, context, callback) => {
+module.exports.senderMsg = async (event, context, callback) => {
   // response and status of HTTP endpoint
   var responseBody = {
     message: "",
@@ -28,20 +28,16 @@ exports.handler = async (event, context, callback) => {
       .sendMessageBatch({
         Entries: msgBatchProducer(),
         QueueUrl: queue_url,
-        MessageAttributes: {
-          DataType: "Number",
-          retryAttempts: 1,
-        },
       })
       .promise();
     return responseCode;
   } catch (err) {
-    console.log(err);
+    console.log("This is Error" + err);
     return { status: 500, desc: "Bad request" };
   }
   // SQS message parameters
 };
-exports.saveDynamo = async (event) => {
+module.exports.saveDynamo = async (event) => {
   try {
     // Loop over all msgs in dlq which have already max attempts
     for (let i = 0; i < event.Records.length; i++) {

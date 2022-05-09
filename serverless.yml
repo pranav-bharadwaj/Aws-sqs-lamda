@@ -52,14 +52,14 @@ plugins:
 
 functions:
   sender:
-    handler: sender.handler
+    handler: sender.senderMsg
     events:
       - http:
           path: v1/sender
           method: post
     
   receiver:
-    handler: receiver.handler
+    handler: receiver.recieverMsg
     events:
       - sqs:
           arn:
